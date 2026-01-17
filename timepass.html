@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Abijeet's DND Virtual-Table - Final Version</title>
+<style>
+/* === MODERN RESET & BASE STYLES === */
+:root {
+    --bg-dark: #1e1e1e;
+    --bg-sidebar: #252526;
+    --border-color: #404040;
+    --primary-color: #007acc; /* VS Code Blue */
+    --accent-color: #26b53a; /* Green for success/rolls */
+    --text-light: #d4d4d4;
+    --text-dark: #1e1e1e;
+    --padding-base: 10px;
+}
+
+body {
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    background: var(--bg-dark);
+    color: var(--text-light);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    user-select: none; 
+    font-size: 14px;
+}
+
+/* === LAYOUT CONTAINERS === */
+#leftSidebar, #rightSidebar {
+    width: 280px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    padding: var(--padding-base);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: width 0.3s ease;
+}
+
+#main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--padding-base);
+}
+
+h1 { 
+    margin: 0 0 var(--padding-base) 0; 
+    font-size: 1.8em;
+    color: var(--primary-color);
+    letter-spacing: 1px;
+}
+h2 { 
+    margin: var(--padding-base) 0 5px 0; 
+    font-size: 1.2em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+/* === INTERACTIVE ELEMENTS (Inputs, Buttons, Selects) === */
+input, select, textarea {
+    padding: 8px;
+    margin-top: 5px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+    border-radius: 4px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+input:focus, select:focus, textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
+    outline: none;
+}
+input[type="file"] { border: none; padding: 0; }
+input[readonly] { background: #333333; }
+input[type="checkbox"] { margin-right: 0; }
+
+button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--primary-color);
+    color: white;
+    font-weight: bold;
+    margin-top: 5px;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+button:hover {
+    background: #0090ff;
+    transform: translateY(-1px);
+}
+button:active {
+    transform: translateY(0);
+}
+.btn-secondary {
+    background: #4a4a4a;
+}
+.btn-secondary:hover {
+    background: #606060;
+}
+.btn-danger {
+    background: #cc4444;
+}
+.btn-danger:hover {
+    background: #e05050;
+}
+
+/* === MAP TAB STYLES === */
+#mapTabsContainer {
+    display: flex;
+    gap: 2px;
+    width: 800px; /* Match canvas width */
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border-color);
+}
+.map-tab-btn {
+    padding: 8px 12px;
+    background: #3a3a3a;
+    color: var(--text-light);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 4px 4px 0 0;
+    font-weight: 500;
+    flex-grow: 1;
+    min-width: 0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0; /* Override default button margin */
+}
+.map-tab-btn.active {
+    background: var(--bg-dark) !important;
+    border-color: var(--primary-color);
+    border-bottom: 1px solid var(--bg-dark);
+}
+.map-tab-btn:not(.active):hover {
+    background: #4a4a4a;
+}
+.map-tab-controls {
+    display: flex;
+    gap: 5px;
+    margin-left: auto;
+    padding-right: 10px;
+}
+#deleteMapBtn {
+    padding: 0 8px;
+    background: #666;
+    margin-top: 0;
+    font-size: 1.1em;
+    line-height: 1;
+}
+
+/* === BOARD & CONTROLS === */
+canvas {
+    border: 1px solid var(--border-color);
+    background: #111;
+    cursor: grab;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    /* Remove top border and only round bottom corners to connect with tabs */
+    border-top: none; 
+    border-radius: 0 0 4px 4px;
+}
+#controls { 
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; 
+    margin-bottom: 10px;
+    padding: 10px;
+    background: var(--bg-sidebar);
+    border-radius: 4px;
+}
+#controls label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+
+/* === LEFT SIDEBAR TAB STYLES === */
+.sidebar-tabs {
+    display: flex;
+    margin-bottom: 10px;
+}
+.sidebar-tab-btn {
+    /* Existing sidebar tab styles... */
+    flex-grow: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    background: #3a3a3a;
+    color: var(--text-light);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-right: 2px;
+    border-radius: 4px 4px 0 0;
+}
+.sidebar-tab-btn:hover {
+    background: #4a4a4a;
+}
+.sidebar-tab-btn.active {
+    background: var(--bg-sidebar) !important;
+    border-color: var(--border-color);
+    border-bottom: 1px solid var(--bg-sidebar); 
+    font-weight: bold;
+}
+.tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid var(--border-color);
+    border-top: none; 
+    border-radius: 0 0 4px 4px;
+    background: var(--bg-sidebar);
+}
+
+/* === CHARACTER SHEET SPECIFIC STYLES === */
+.char-tab-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+.char-tab-btn { /* Specific to character tabs inside the main tab */
+    flex-grow: 1;
+    min-width: 0;
+    padding: 6px;
+    background: #3a3a3a;
+    color: var(--text-light);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+.char-tab-btn:hover {
+    background: #4a4a4a;
+}
+.char-tab-btn.active {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border-color: var(--primary-color);
+    font-weight: bold;
+}
+#charSheetForm label {
+    display: block;
+    margin-top: 10px;
+}
+#charSheetForm textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+/* === KEY GUIDE SPECIFIC STYLES === */
+#keyGuideContent {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+#keyGuideContent h3 {
+    margin-top: 15px;
+    font-size: 1.1em;
+    color: var(--primary-color);
+}
+#keyGuideContent table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+}
+#keyGuideContent th, #keyGuideContent td {
+    padding: 5px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+}
+#keyGuideContent th {
+    background: #3a3a3a;
+    color: white;
+}
+#keyGuideContent td:first-child {
+    font-weight: bold;
+    min-width: 80px;
+}
+
+
+/* === DICE ROLLER STYLES === */
+#results {
+    margin-top: var(--padding-base);
+    font-size: 1em;
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: var(--padding-base);
+    background: #111;
+    text-align: left;
+}
+#results > div {
+    border-bottom: 1px dashed #3a3a3a;
+    padding: 5px 0;
+    margin-bottom: 5px;
+}
+#results strong { color: var(--text-light); }
+#results .roll-total { 
+    font-size: 1.4em; 
+    color: var(--accent-color);
+}
+#results .roll-details {
+    font-size: 0.8em;
+    color: #a0a0a0;
+}
+.dice-controls {
+    display: flex;
+    flex-direction: column;
+}
+
+/* === ZOOM CONTROLS STYLES === */
+#zoomControls {
+    margin-top: 10px; 
+    display: flex; 
+    gap: 10px;
+}
+/* Ensure zoom buttons are styled as secondary buttons */
+#zoomControls button {
+    background: #4a4a4a;
+    margin-top: 0;
+}
+#zoomControls button:hover {
+    background: #606060;
+}
+</style>
+</head>
+<body>
+
+<div id="leftSidebar">
+    <div class="sidebar-tabs">
+        <button id="tabCharSheet" class="sidebar-tab-btn active">Character Sheets</button>
+        <button id="tabKeyGuide" class="sidebar-tab-btn">Key Guide</button>
+    </div>
+    
+    <div id="charSheetContent" class="tab-content">
+        <div id="charSheetContainer"></div>
+    </div>
+    
+    <div id="keyGuideContent" class="tab-content" style="display:none;">
+        <div id="guideContent">
+            <h2>VTT Function & Key Guide</h2>
+
+            <h3>🗺️ Map & View Controls</h3>
+            <table>
+                <tr><th>Action</th><th>Control/Input</th><th>Description</th></tr>
+                <tr><td>Pan Map</td><td>**Click and Drag** (LMB) on empty map</td><td>Move the map around the canvas.</td></tr>
+                <tr><td>Zoom</td><td>**Mouse Scroll Wheel** / **Buttons**</td><td>Adjust the scale of the map and grid.</td></tr>
+                <tr><td>Reset View</td><td>**Reset View** button</td><td>Returns the view to 1.0 scale with no panning.</td></tr>
+                <tr><td>Grid Snap</td><td>**Grid Toggle** checkbox</td><td>Tokens automatically snap to grid intersections when moving.</td></tr>
+            </table>
+
+            <h3>🛡️ Token & Character Controls</h3>
+            <table>
+                <tr><th>Action</th><th>Control/Input</th><th>Description</th></tr>
+                <tr><td>Move Token</td><td>**Click and Drag** (LMB) on token</td><td>Moves the token, snaps to grid if active.</td></tr>
+                <tr><td>Delete Token</td><td>**Right-Click** on token (Draw Mode: None)</td><td>Removes the token with confirmation.</td></tr>
+                <tr><td>Link Sheet</td><td>**Double-Click** on token</td><td>Link the token to a character sheet by index number.</td></tr>
+                <tr><td>View Sheet</td><td>**Single-Click** on a linked token</td><td>Opens the linked character sheet in the sidebar.</td></tr>
+            </table>
+
+            <h3>✍️ Drawing & Ruler Controls</h3>
+            <table>
+                <tr><th>Action</th><th>Control/Input</th><th>Description</th></tr>
+                <tr><td>Draw Line/Box</td><td>Set **Draw Mode**; **Click & Drag**</td><td>Creates a persistent drawing.</td></tr>
+                <tr><td>Measure Distance</td><td>Set **Draw Mode: Ruler**; **Click & Drag**</td><td>Measures distance in **squares** (if grid on) or **pixels** (if grid off).</td></tr>
+                <tr><td>Clear Drawings</td><td>**Clear Drawings** button</td><td>Removes all persistent drawings.</td></tr>
+            </table>
+
+            <h3>💾 System & Dice</h3>
+            <table>
+                <tr><th>Action</th><th>Control/Input</th><th>Description</th></tr>
+                <tr><td>Save/Load</td><td>**Manual Save** / **Load Last Save**</td><td>Manually saves/loads the game state to your browser. (Auto-saves every 60s).</td></tr>
+                <tr><td>Roll Dice</td><td>Enter expression (e.g., **1d20+5**) and **Roll Dice**</td><td>Calculates and logs the result.</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="main">
+    <h1>Abijeet's DND Virtual-Table</h1>
+
+    <div id="mapTabsContainer">
+        </div>
+
+    <div id="controls">
+        <label>Map: <input type="file" id="mapUpload"></label>
+        <label>Token: <input type="file" id="tokenUpload"></label>
+        <label>Token Size:
+            <select id="tokenSize">
+                <option value="25">Small (1x1)</option>
+                <option value="50" selected>Medium (1x1)</option>
+                <option value="75">Large (2x2)</option>
+                <option value="100">Huge (3x3)</option>
+                <option value="150">Gargantuan (4x4+)</option>
+            </select>
+        </label>
+        
+        <label>Draw Mode:
+            <select id="drawMode">
+                <option value="none">None (Move Token/Pan)</option>
+                <option value="line">Line</option>
+                <option value="box">Box (Rectangle)</option>
+                <option value="ruler">Ruler (Measure Distance)</option> 
+            </select>
+        </label>
+        <label>Color: <input type="color" id="drawColor" value="#cc0000"></label>
+        <button id="clearDrawingsBtn" class="btn-secondary">Clear Drawings</button>
+        
+        <label>Grid Size (px): 
+            <input type="number" id="gridSize" value="50" min="10" style="width: 60px;">
+        </label>
+        <label>
+            <input type="checkbox" id="gridToggle"> Show Grid
+        </label>
+    </div>
+    <canvas id="board" width="800" height="600"></canvas>
+    
+    <div id="zoomControls">
+        <button id="zoomInBtn">+ Zoom In</button>
+        <button id="zoomOutBtn">- Zoom Out</button>
+        <button id="resetViewBtn">Reset View</button>
+    </div>
+</div>
+
+<div id="rightSidebar">
+    <button id="saveGameBtn" class="btn-secondary">Manual Save</button>
+    <button id="loadGameBtn" class="btn-secondary">Load Last Save</button>
+
+    <div class="dice-controls">
+        <h2>Dice Roller</h2>
+        <label>Expression: 
+            <input type="text" id="diceExpression" value="1d20+5" style="width:100%; margin-bottom: 5px;">
+        </label>
+        <button id="rollBtn">Roll Dice</button>
+        <button id="clearTokensBtn" class="btn-secondary">Clear All Tokens</button>
+        <button id="clearHistoryBtn" class="btn-secondary">Clear History</button>
+    </div>
+    <div id="results">Roll history will appear here...</div>
+</div>
+
+<script>
+    // === VTT STATE VARIABLES ===
+    let characters = [];
+    let selectedIndex = null;
+    
+    // NEW MAP STATE STRUCTURE
+    let maps = []; 
+    let currentMapIndex = null; 
+
+    let dragging = null;
+    let offsetX, offsetY; 
+    
+    let currentDrawing = null; 
+    
+    // === MAP TRANSFORMATION VARIABLES (Pan & Zoom) ===
+    let scale = 1.0;
+    let panX = 0;
+    let panY = 0;
+    let lastMouseX, lastMouseY; 
+
+    const canvas = document.getElementById("board");
+    const ctx = canvas.getContext("2d");
+    const container = document.getElementById("charSheetContainer");
+    const resultsDiv = document.getElementById("results");
+    
+    // === MAP ACCESSORS ===
+    function getCurrentMap() {
+        return maps[currentMapIndex] || null;
+    }
+
+    function getMapProperty(prop, defaultValue) {
+        const map = getCurrentMap();
+        return map ? map[prop] : defaultValue;
+    }
+    
+    function getCssColor(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadGame();
+        // Set initial tab state
+        switchTab('charSheet');
+        renderMapTabs();
+    });
+
+    // === MAP TAB LOGIC ===
+    function renderMapTabs() {
+        const tabsContainer = document.getElementById('mapTabsContainer');
+        tabsContainer.innerHTML = '';
+
+        maps.forEach((map, index) => {
+            const tab = document.createElement("button");
+            tab.textContent = map.name;
+            tab.className = "map-tab-btn";
+            tab.classList.toggle('active', index === currentMapIndex);
+            tab.onclick = () => { switchMap(index); };
+            tabsContainer.appendChild(tab);
+        });
+
+        if (maps.length > 0) {
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = "map-tab-controls";
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.id = 'deleteMapBtn';
+            deleteBtn.textContent = '❌';
+            deleteBtn.className = 'btn-danger';
+            deleteBtn.title = 'Delete Current Map';
+            deleteBtn.onclick = deleteCurrentMap;
+            controlsDiv.appendChild(deleteBtn);
+
+            tabsContainer.appendChild(controlsDiv);
+        }
+    }
+
+    function deleteCurrentMap() {
+        if (!getCurrentMap()) return;
+        if (confirm(`Delete map "${getCurrentMap().name}" and all its tokens/drawings?`)) {
+            maps.splice(currentMapIndex, 1);
+            if (maps.length > 0) {
+                switchMap(0);
+            } else {
+                currentMapIndex = null;
+                // Clear state when no maps are left
+                document.getElementById('gridToggle').checked = false;
+                document.getElementById('gridSize').value = 50;
+                draw();
+                renderMapTabs();
+            }
+        }
+    }
+
+    function switchMap(index) {
+        if (index === currentMapIndex) return;
+        
+        // 1. Save current view/grid settings before switching
+        if (currentMapIndex !== null && maps[currentMapIndex]) {
+             maps[currentMapIndex].scale = scale;
+             maps[currentMapIndex].panX = panX;
+             maps[currentMapIndex].panY = panY;
+             maps[currentMapIndex].gridSize = parseInt(document.getElementById('gridSize').value);
+             maps[currentMapIndex].isGridVisible = document.getElementById('gridToggle').checked;
+        }
+
+        // 2. Switch map index
+        currentMapIndex = index;
+        const newMap = getCurrentMap();
+
+        if (newMap) {
+            // 3. Load new map's state
+            scale = newMap.scale ?? 1.0;
+            panX = newMap.panX ?? 0;
+            panY = newMap.panY ?? 0;
+            
+            // 4. Update UI controls to reflect new map's settings
+            document.getElementById('gridToggle').checked = newMap.isGridVisible ?? false;
+            document.getElementById('gridSize').value = newMap.gridSize ?? 50;
+        }
+        
+        renderMapTabs();
+        draw();
+    }
+
+
+    // === LEFT SIDEBAR TAB LOGIC (UNCHANGED) ===
+    document.getElementById('tabCharSheet').addEventListener('click', () => switchTab('charSheet'));
+    document.getElementById('tabKeyGuide').addEventListener('click', () => switchTab('keyGuide'));
+
+    function switchTab(tabId) {
+        // Hide all content and deactivate all buttons
+        document.getElementById('charSheetContent').style.display = 'none';
+        document.getElementById('keyGuideContent').style.display = 'none';
+        document.getElementById('tabCharSheet').classList.remove('active');
+        document.getElementById('tabKeyGuide').classList.remove('active');
+
+        // Show selected content and activate selected button
+        if (tabId === 'charSheet') {
+            document.getElementById('charSheetContent').style.display = 'flex';
+            document.getElementById('tabCharSheet').classList.add('active');
+            // Re-render character sheet when switching back
+            renderCharTabs(selectedIndex);
+            renderCharSheet();
+        } else if (tabId === 'keyGuide') {
+            document.getElementById('keyGuideContent').style.display = 'block';
+            document.getElementById('tabKeyGuide').classList.add('active');
+        }
+    }
+
+    // === CHARACTER SHEET FUNCTIONS (UNCHANGED) ===
+    function renderCharTabs(activeIndex = selectedIndex) {
+        container.innerHTML = ""; 
+
+        const tabsDiv = document.createElement("div");
+        tabsDiv.className = "char-tab-container";
+
+        characters.forEach((char, index) => {
+            const tab = document.createElement("button");
+            tab.textContent = char.name;
+            tab.className = "char-tab-btn";
+            tab.classList.toggle('active', index === activeIndex);
+            tab.onclick = () => { selectCharacterTab(index); };
+            tabsDiv.appendChild(tab);
+        });
+
+        const addTab = document.createElement("button");
+        addTab.textContent = "+ Add";
+        addTab.className = "char-tab-btn";
+        addTab.style.background = getCssColor('--primary-color'); 
+        addTab.onclick = () => {
+            const name = prompt("Enter character name:");
+            if (name) {
+                characters.push({ name, hp: 10, ac: 10, notes: "" });
+                selectCharacterTab(characters.length - 1);
+            }
+        };
+        tabsDiv.appendChild(addTab);
+        container.appendChild(tabsDiv);
+    }
+
+    function renderCharSheet() {
+        let oldForm = document.getElementById("charSheetForm");
+        if (oldForm) oldForm.remove();
+
+        if (selectedIndex === null) return;
+
+        const char = characters[selectedIndex];
+
+        const form = document.createElement("form");
+        form.id = "charSheetForm";
+
+        // Name
+        const nameLabel = document.createElement("label");
+        nameLabel.textContent = "Name:";
+        const nameInput = document.createElement("input");
+        nameInput.value = char.name;
+        nameInput.readOnly = true;
+        nameLabel.appendChild(nameInput);
+        form.appendChild(nameLabel);
+
+        // HP
+        const hpLabel = document.createElement("label");
+        hpLabel.textContent = "HP:";
+        const hpInput = document.createElement("input");
+        hpInput.type = "number";
+        hpInput.value = char.hp;
+        hpInput.oninput = () => { char.hp = parseInt(hpInput.value) || 0; };
+        hpLabel.appendChild(hpInput);
+        form.appendChild(hpLabel);
+
+        // AC
+        const acLabel = document.createElement("label");
+        acLabel.textContent = "AC:";
+        const acInput = document.createElement("input");
+        acInput.type = "number";
+        acInput.value = char.ac;
+        acInput.oninput = () => { char.ac = parseInt(acInput.value) || 0; };
+        acLabel.appendChild(acInput);
+        form.appendChild(acLabel);
+
+        // Notes
+        const notesLabel = document.createElement("label");
+        notesLabel.textContent = "Notes:";
+        const notesInput = document.createElement("textarea");
+        notesInput.value = char.notes;
+        notesInput.rows = 4;
+        notesInput.oninput = () => { char.notes = notesInput.value; };
+        notesLabel.appendChild(notesInput);
+        form.appendChild(notesLabel);
+
+        // Delete character button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.textContent = "Delete Character";
+        deleteBtn.className = "btn-danger";
+        deleteBtn.onclick = () => {
+            if (confirm(`Delete character "${char.name}"?`)) {
+                // Update token links across all maps
+                maps.forEach(map => {
+                    map.tokens.forEach(t => {
+                        if (t.linkedCharacterIndex === selectedIndex) { t.linkedCharacterIndex = null; }
+                        if (t.linkedCharacterIndex > selectedIndex) { t.linkedCharacterIndex--; }
+                    });
+                });
+                characters.splice(selectedIndex, 1);
+                selectedIndex = characters.length ? 0 : null;
+                renderCharTabs(selectedIndex);
+                renderCharSheet();
+                draw(); 
+            }
+        };
+        form.appendChild(deleteBtn);
+        container.appendChild(form);
+    }
+    
+    function selectCharacterTab(index){
+        selectedIndex = index;
+        renderCharTabs(selectedIndex);
+        renderCharSheet();
+        draw(); 
+    }
+
+    // === CANVAS DRAWING FUNCTION (UPDATED) ===
+    function draw() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        
+        const currentMap = getCurrentMap();
+        if (!currentMap) {
+            ctx.fillStyle = getCssColor('--bg-sidebar');
+            ctx.font = '24px sans-serif'; 
+            ctx.textAlign = 'center';
+            ctx.fillText("Upload a Map to Start", canvas.width / 2, canvas.height / 2);
+            return;
+        }
+
+        const mapImage = currentMap.img;
+        const isGridVisible = currentMap.isGridVisible;
+        const currentGridSize = currentMap.gridSize;
+        const drawings = currentMap.drawings;
+        const tokens = currentMap.tokens;
+
+        // 1. APPLY TRANSFORMATION FOR MAP, GRID, DRAWINGS
+        ctx.save();
+        ctx.translate(panX, panY);
+        ctx.scale(scale, scale);
+        
+        // Draw Map (Aspect Ratio Contain)
+        if(mapImage) {
+            const canvasW = canvas.width;
+            const canvasH = canvas.height;
+            const imageW = mapImage.width;
+            const imageH = mapImage.height;
+            
+            // Calculate the scale factor to fit the image entirely within the canvas (Contain)
+            const ratio = Math.min(canvasW / imageW, canvasH / imageH);
+            
+            const drawWidth = imageW * ratio;
+            const drawHeight = imageH * ratio;
+            
+            // Calculate offsets to center the image
+            const offsetX = (canvasW - drawWidth) / 2;
+            const offsetY = (canvasH - drawHeight) / 2;
+
+            // Draw the image with containment and centering
+            ctx.drawImage(mapImage, offsetX, offsetY, drawWidth, drawHeight); 
+        }
+        
+        // Draw Grid Overlay
+        if (isGridVisible && currentGridSize > 5) { 
+            ctx.strokeStyle = 'rgba(200, 200, 200, 0.5)'; 
+            ctx.lineWidth = 1 / scale; 
+            const size = currentGridSize;
+            
+            // Draw vertical lines
+            for (let x = size; x < canvas.width; x += size) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            // Draw horizontal lines
+            for (let y = size; y < canvas.height; y += size) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+        
+        // Drawing Logic (Lines/Boxes/Ruler) - uses map coordinates
+        [...drawings, currentDrawing].filter(Boolean).forEach(d => {
+            
+            if (d.type === 'line' || d.type === 'box') {
+                ctx.strokeStyle = d.color;
+                ctx.lineWidth = 3 / scale; 
+                if (d.type === 'line') {
+                    ctx.beginPath();
+                    ctx.moveTo(d.startX, d.startY);
+                    ctx.lineTo(d.endX, d.endY);
+                    ctx.stroke();
+                } else if (d.type === 'box') {
+                    ctx.strokeRect(d.startX, d.startY, d.width, d.height);
+                }
+            } else if (d.type === 'ruler') {
+                // 1. Draw the line on the map
+                ctx.strokeStyle = d.color;
+                ctx.lineWidth = 3 / scale; 
+                ctx.beginPath();
+                ctx.moveTo(d.startX, d.startY);
+                ctx.lineTo(d.endX, d.endY);
+                ctx.stroke();
+                
+                // 2. Calculate Distance
+                const dx = d.endX - d.startX;
+                const dy = d.endY - d.startY;
+                
+                let distance;
+                if (isGridVisible) {
+                    // D&D 5E/4E: Diagonal costs 1 square. Equivalent to Math.max(abs(dx), abs(dy)) in squares.
+                    const distSquares = Math.max(Math.abs(dx), Math.abs(dy)) / currentGridSize;
+                    distance = Math.round(distSquares);
+                } else {
+                    // Euclidean distance (as the crow flies) in pixels
+                    const distPixels = Math.sqrt(dx * dx + dy * dy);
+                    distance = distPixels.toFixed(0); 
+                }
+
+                // 3. Draw the text label (Must be drawn in screen space, so we break the map context)
+                
+                // Restore context to draw text on screen
+                ctx.restore(); 
+                
+                // Calculate screen position for the text label (midpoint of the line)
+                const textMapX = (d.startX + d.endX) / 2;
+                const textMapY = (d.startY + d.endY) / 2;
+                
+                const textScreenX = textMapX * scale + panX;
+                const textScreenY = textMapY * scale + panY;
+                
+                const label = isGridVisible ? `${distance} Squares` : `${distance} px`;
+
+                // Draw background box for readability
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(textScreenX - 50, textScreenY - 15, 100, 20);
+                
+                // Draw text
+                ctx.fillStyle = '#fff'; 
+                ctx.font = '14px sans-serif'; 
+                ctx.textAlign = 'center';
+                ctx.fillText(label, textScreenX, textScreenY + 3); // +3 for vertical alignment
+
+                // Re-apply context for next drawing object to stay on the map layer
+                ctx.save(); 
+                ctx.translate(panX, panY);
+                ctx.scale(scale, scale);
+            }
+        });
+
+        // 2. RESTORE CONTEXT TO DRAW TOKENS IN SCREEN SPACE 
+        ctx.restore(); 
+
+        // Draw Tokens - Token coordinates are MAP coordinates, so they must be transformed here for drawing
+        for(let i = 0; i < tokens.length; i++) {
+            const t = tokens[i];
+            
+            // Calculate Token Screen Position and Size
+            const drawSize = t.size * scale;
+            const drawX = t.x * scale + panX;
+            const drawY = t.y * scale + panY;
+
+            // Draw the Token Image
+            ctx.drawImage(t.img, drawX, drawY, drawSize, drawSize);
+            
+            // Draw Label (Initial)
+            if (t.linkedCharacterIndex !== null && characters[t.linkedCharacterIndex]) {
+                const char = characters[t.linkedCharacterIndex];
+                const nameInitial = char.name.charAt(0).toUpperCase();
+                
+                // Background circle 
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; 
+                ctx.beginPath();
+                ctx.arc(drawX + drawSize / 2, drawY, drawSize / 4, 0, Math.PI * 2); 
+                ctx.fill();
+                
+                // Text
+                ctx.fillStyle = '#fff'; 
+                ctx.font = `${drawSize / 3}px sans-serif`; 
+                ctx.textAlign = 'center';
+                ctx.fillText(nameInitial, drawX + drawSize / 2, drawY + drawSize / 10);
+            }
+        }
+
+        // Draw highlights
+        if (selectedIndex !== null) {
+            highlightTokensForCharacter(selectedIndex);
+        }
+    }
+    
+    function highlightTokensForCharacter(index) {
+        const tokens = getMapProperty('tokens', []);
+        for (let t of tokens) {
+            if (t.linkedCharacterIndex === index) {
+                // Calculate position based on map coordinates
+                const drawSize = t.size * scale;
+                const drawX = t.x * scale + panX;
+                const drawY = t.y * scale + panY;
+                
+                ctx.strokeStyle = getCssColor('--accent-color'); 
+                ctx.lineWidth = 3;
+                ctx.strokeRect(drawX-2, drawY-2, drawSize+4, drawSize+4);
+            }
+        }
+    }
+
+    // --- ZOOM BUTTON HANDLERS (UPDATED) ---
+    function applyZoom(factor) {
+        const mx = canvas.width / 2;
+        const my = canvas.height / 2;
+        
+        panX = mx - (mx - panX) * factor;
+        panY = my - (my - panY) * factor;
+        
+        scale *= factor;
+        scale = Math.max(0.5, Math.min(4.0, scale)); 
+        draw();
+    }
+
+    function resetView() {
+        scale = 1.0;
+        panX = 0;
+        panY = 0;
+        draw();
+    }
+    
+    document.getElementById('zoomInBtn').addEventListener('click', () => {
+        applyZoom(1.25);
+    });
+
+    document.getElementById('zoomOutBtn').addEventListener('click', () => {
+        applyZoom(0.8);
+    });
+
+    document.getElementById('resetViewBtn').addEventListener('click', resetView);
+
+    // --- CANVAS MOUSE HANDLERS (UPDATED) ---
+    canvas.addEventListener("mousedown", e => {
+        if (e.button !== 0 || !getCurrentMap()) return; 
+
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const mode = document.getElementById('drawMode').value;
+        const color = document.getElementById('drawColor').value;
+        const tokens = getCurrentMap().tokens;
+        const isGridVisible = getCurrentMap().isGridVisible;
+        const currentGridSize = getCurrentMap().gridSize;
+        
+        if (mode === 'none') {
+            for(let i = tokens.length - 1; i >= 0; i--){
+                let t = tokens[i];
+                const drawSize = t.size * scale;
+                const drawX = t.x * scale + panX;
+                const drawY = t.y * scale + panY;
+
+                if(mx >= drawX && mx <= drawX + drawSize && my >= drawY && my <= drawY + drawSize){
+                    dragging = t; 
+                    
+                    const mapX = (mx - panX) / scale;
+                    const mapY = (my - panY) / scale;
+                    offsetX = mapX - t.x;
+                    offsetY = mapY - t.y;
+
+                    tokens.splice(i, 1); tokens.push(t);
+                    break;
+                }
+            }
+            if (!dragging) {
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                canvas.style.cursor = 'grabbing';
+            }
+
+        } else {
+            const mapX = (mx - panX) / scale;
+            const mapY = (my - panY) / scale;
+
+            if (mode === 'line') {
+                currentDrawing = { type: 'line', color, startX: mapX, startY: mapY, endX: mapX, endY: mapY };
+            } else if (mode === 'box') {
+                currentDrawing = { type: 'box', color, startX: mapX, startY: mapY, width: 0, height: 0 };
+            } else if (mode === 'ruler') {
+                let startX = mapX;
+                let startY = mapY;
+                if (isGridVisible) {
+                    const size = currentGridSize;
+                    startX = Math.round(mapX / size) * size;
+                    startY = Math.round(mapY / size) * size;
+                }
+                currentDrawing = { type: 'ruler', color: '#ffdd00', startX, startY, endX: startX, endY: startY };
+            }
+        }
+    });
+
+    canvas.addEventListener("mousemove", e => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        
+        const currentMap = getCurrentMap();
+
+        if (dragging) {
+            let mapX = (mx - panX) / scale;
+            let mapY = (my - panY) / scale;
+            
+            let targetX = mapX - offsetX; 
+            let targetY = mapY - offsetY; 
+            
+            if (currentMap && currentMap.isGridVisible) {
+                const size = currentMap.gridSize;
+                targetX = Math.round(targetX / size) * size;
+                targetY = Math.round(targetY / size) * size;
+            }
+            
+            dragging.x = targetX;
+            dragging.y = targetY;
+            draw();
+        } else if (lastMouseX !== undefined) {
+            const deltaX = e.clientX - lastMouseX;
+            const deltaY = e.clientY - lastMouseY;
+
+            panX += deltaX;
+            panY += deltaY;
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            draw();
+
+        } else if (currentDrawing) {
+            const mapX = (mx - panX) / scale;
+            const mapY = (my - panY) / scale;
+
+            if (currentDrawing.type === 'line') {
+                currentDrawing.endX = mapX;
+                currentDrawing.endY = mapY;
+            } else if (currentDrawing.type === 'box') {
+                currentDrawing.width = mapX - currentDrawing.startX;
+                currentDrawing.height = mapY - currentDrawing.startY;
+            } else if (currentDrawing.type === 'ruler') {
+                if (currentMap && currentMap.isGridVisible) {
+                    const size = currentMap.gridSize;
+                    currentDrawing.endX = Math.round(mapX / size) * size;
+                    currentDrawing.endY = Math.round(mapY / size) * size;
+                } else {
+                    currentDrawing.endX = mapX;
+                    currentDrawing.endY = mapY;
+                }
+            }
+            draw();
+        }
+    });
+
+    canvas.addEventListener("mouseup", e => {
+        if (e.button !== 0 || !getCurrentMap()) return; 
+
+        dragging = null; 
+        lastMouseX = undefined;
+        canvas.style.cursor = 'grab';
+
+        if (currentDrawing) {
+            if (currentDrawing.type !== 'ruler') { 
+                getCurrentMap().drawings.push(currentDrawing);
+            }
+            currentDrawing = null; 
+            draw();
+        }
+    });
+    
+    canvas.addEventListener("mouseleave", () => {
+        dragging = null; 
+        currentDrawing = null; 
+        lastMouseX = undefined;
+        canvas.style.cursor = 'grab';
+        draw();
+    });
+    
+    canvas.addEventListener('contextmenu', e => {
+        if (document.getElementById('drawMode').value !== 'none') {
+            e.preventDefault();
+        }
+    });
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault(); 
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 1 / 1.1; 
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        
+        panX = mx - (mx - panX) * zoomFactor;
+        panY = my - (my - panY) * zoomFactor;
+        
+        scale *= zoomFactor;
+        scale = Math.max(0.5, Math.min(4.0, scale)); 
+
+        draw();
+    });
+
+    canvas.addEventListener("contextmenu", e=>{
+        const mode = document.getElementById('drawMode').value;
+        const tokens = getMapProperty('tokens', []);
+        
+        if (mode === 'none') {
+            e.preventDefault(); 
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+            for(let i = tokens.length - 1; i >= 0; i--){ 
+                const t = tokens[i];
+                const drawSize = t.size * scale;
+                const drawX = t.x * scale + panX;
+                const drawY = t.y * scale + panY;
+
+                if(mx >= drawX && mx <= drawX + drawSize && my >= drawY && my <= drawY + drawSize){
+                    if(confirm("Delete this token?")){ 
+                        tokens.splice(i,1); 
+                        draw(); 
+                    }
+                    break;
+                }
+            }
+        } 
+    });
+
+    canvas.addEventListener("dblclick", e => {
+        const tokens = getMapProperty('tokens', []);
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+        for (let t of tokens) {
+            const drawSize = t.size * scale;
+            const drawX = t.x * scale + panX;
+            const drawY = t.y * scale + panY;
+
+            if(mx >= drawX && mx <= drawX + drawSize && my >= drawY && my <= drawY + drawSize) {
+                if (!characters || !characters.length) return alert("No character sheets available! Add one first.");
+
+                const names = characters.map((c,i) => `${i}: ${c.name || "Unnamed"}`).join("\n");
+                const choice = prompt(`Link this token to a character sheet:\n${names}\nEnter index number, or -1 to unlink:`);
+
+                const index = parseInt(choice);
+                if (index === -1) { t.linkedCharacterIndex = null; alert("Token unlinked.");} 
+                else if (!isNaN(index) && index>=0 && index<characters.length) { 
+                    t.linkedCharacterIndex = index;
+                    alert(`Token linked to ${characters[index].name || "Unnamed"}`);
+                } else if (choice !== null) { alert("Invalid index entered."); }
+                draw();
+                break;
+            }
+        }
+    });
+
+    canvas.addEventListener("click", e => {
+        const tokens = getMapProperty('tokens', []);
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        if (document.getElementById('drawMode').value === 'none') {
+            for (let t of tokens) {
+                const drawSize = t.size * scale;
+                const drawX = t.x * scale + panX;
+                const drawY = t.y * scale + panY;
+                
+                if(mx >= drawX && mx <= drawX + drawSize && my >= drawY && my <= drawY + drawSize){
+                    if(t.linkedCharacterIndex!==null){
+                        // Switch to Character Sheet tab and select the sheet
+                        switchTab('charSheet');
+                        selectCharacterTab(t.linkedCharacterIndex);
+                    }
+                    break;
+                }
+            }
+        }
+    });
+    
+    document.getElementById("clearTokensBtn").addEventListener("click", ()=>{
+        const tokens = getMapProperty('tokens', []);
+        if(tokens.length && confirm("Delete all tokens from the CURRENT map?")){
+            tokens.length = 0; // Clear the array in place
+            draw();
+        }
+    });
+    
+    document.getElementById("clearDrawingsBtn").addEventListener("click", () => {
+        const drawings = getMapProperty('drawings', []);
+        if (drawings.length && confirm("Clear all persistent drawings from the CURRENT map?")) {
+            drawings.length = 0; // Clear the array in place
+            draw();
+        }
+    });
+
+
+    // === DICE ROLLER (UNCHANGED) ===
+    document.getElementById("rollBtn").addEventListener("click", () => {
+        const expression = document.getElementById("diceExpression").value.toLowerCase().replace(/\s/g, ''); 
+        if (!expression) return;
+
+        const partsRegex = /(\d*)d(\d+)|([+-]\d+)/g;
+        let total = 0;
+        let detailParts = [];
+        let isValidRoll = false;
+
+        let match;
+        while ((match = partsRegex.exec(expression)) !== null) {
+            isValidRoll = true;
+            if (match[1] || match[2]) {
+                const numDice = parseInt(match[1] || '1');
+                const sides = parseInt(match[2]);
+                let rolls = [];
+                let rollSum = 0;
+                
+                for(let i = 0; i < numDice; i++) {
+                    const roll = Math.floor(Math.random() * sides) + 1;
+                    rolls.push(roll);
+                    rollSum += roll;
+                }
+                total += rollSum;
+                detailParts.push(`${numDice}d${sides}: [${rolls.join(", ")}]`);
+
+            } else if (match[3]) {
+                const modifier = parseInt(match[3]);
+                total += modifier;
+                detailParts.push(`${modifier > 0 ? '+' : ''}${modifier} (Mod)`);
+            }
+        }
+
+        if (!isValidRoll) {
+            const simpleValue = parseInt(expression);
+            if (!isNaN(simpleValue)) {
+                total = simpleValue;
+                detailParts.push(`${simpleValue} (Flat)`);
+                isValidRoll = true;
+            }
+        }
+
+        if (!isValidRoll) {
+            const errorEntry = document.createElement("div");
+            errorEntry.innerHTML = `<strong>Error:</strong> Invalid expression: ${expression}.`;
+            resultsDiv.prepend(errorEntry);
+            return;
+        }
+        
+        const entry = document.createElement("div");
+        entry.innerHTML = `
+            <strong>Roll: ${expression.toUpperCase()}</strong>
+            <br>
+            Total: <span class="roll-total">${total}</span>
+            <br>
+            <span class="roll-details">${detailParts.join(", ")}</span>
+        `;
+        resultsDiv.prepend(entry);
+    });
+    
+    document.getElementById("clearHistoryBtn").addEventListener("click", () => {
+        if (confirm("Clear all dice rolls from history?")) {
+            resultsDiv.innerHTML = "Roll history will appear here...";
+        }
+    });
+
+    // === SAVE / LOAD SYSTEM (UPDATED FOR MULTI-MAP) ===
+    document.getElementById("saveGameBtn").addEventListener("click", () => {
+        autoSave();
+        alert("Game state manually saved to browser storage!");
+    });
+
+    document.getElementById("loadGameBtn").addEventListener("click", () => {
+        loadGame();
+        alert("Game state loaded from browser storage!");
+    });
+    
+    function loadMapData(mapData) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                mapData.img = img;
+                mapData.tokens.forEach(t => {
+                    t.img = new Image();
+                    t.img.src = t.imgBase64;
+                });
+                resolve(mapData);
+            };
+            img.onerror = () => {
+                console.warn(`Could not load map image for ${mapData.name}. Using blank map.`);
+                mapData.img = null;
+                resolve(mapData);
+            };
+            img.src = mapData.imgBase64;
+            
+            if (!mapData.imgBase64) resolve(mapData); // Handle maps with no image
+        });
+    }
+
+    function loadGame() {
+        const data = localStorage.getItem('dndTabletopSave');
+        if(!data) {
+            renderCharTabs(); 
+            renderCharSheet();
+            return;
+        }
+
+        const parsed = JSON.parse(data);
+
+        characters = parsed.characters || [];
+        selectedIndex = characters.length ? 0 : null;
+        renderCharTabs(selectedIndex);
+        renderCharSheet();
+        
+        maps = [];
+        currentMapIndex = parsed.currentMapIndex ?? 0;
+
+        // Load all maps asynchronously
+        const mapLoadPromises = (parsed.maps || []).map(mapData => {
+            // Reconstruct the token objects (images) for each map
+            const serializableMap = {
+                name: mapData.name,
+                imgBase64: mapData.imgBase64,
+                tokens: (mapData.tokens || []).map(t => ({
+                    x: t.x, y: t.y, size: t.size, imgBase64: t.imgSrc, linkedCharacterIndex: t.linkedCharacterIndex
+                })),
+                drawings: mapData.drawings || [],
+                gridSize: mapData.gridSize ?? 50,
+                isGridVisible: mapData.isGridVisible ?? false,
+                scale: mapData.scale ?? 1.0,
+                panX: mapData.panX ?? 0,
+                panY: mapData.panY ?? 0
+            };
+            return loadMapData(serializableMap);
+        });
+
+        Promise.all(mapLoadPromises).then(loadedMaps => {
+            maps = loadedMaps;
+            if (maps.length === 0) {
+                currentMapIndex = null;
+            } else if (currentMapIndex === null || currentMapIndex >= maps.length) {
+                currentMapIndex = 0;
+            }
+            
+            // Initial switch to set the UI controls and draw
+            switchMap(currentMapIndex);
+        });
+    }
+    
+    function autoSave() {
+        // First, save the current view/grid state into the current map object
+        if (currentMapIndex !== null) {
+             maps[currentMapIndex].scale = scale;
+             maps[currentMapIndex].panX = panX;
+             maps[currentMapIndex].panY = panY;
+             maps[currentMapIndex].gridSize = parseInt(document.getElementById('gridSize').value);
+             maps[currentMapIndex].isGridVisible = document.getElementById('gridToggle').checked;
+        }
+        
+        const serializableMaps = maps.map(map => ({
+            name: map.name,
+            imgBase64: map.imgBase64,
+            drawings: map.drawings,
+            gridSize: map.gridSize,
+            isGridVisible: map.isGridVisible,
+            scale: map.scale,
+            panX: map.panX,
+            panY: map.panY,
+            // Only save serializable token data (imgBase64)
+            tokens: map.tokens.map(t => ({
+                x: t.x, y: t.y, size: t.size, imgSrc: t.imgBase64, linkedCharacterIndex: t.linkedCharacterIndex
+            }))
+        }));
+
+        const saveData = {
+            maps: serializableMaps,
+            currentMapIndex: currentMapIndex,
+            characters: characters
+        };
+
+        try {
+            localStorage.setItem('dndTabletopSave', JSON.stringify(saveData));
+        } catch (e) {
+            console.error("Auto-save failed: Storage Quota exceeded.", e);
+        }
+    }
+
+    setInterval(autoSave, 60000); 
+
+    // === MAP/TOKEN UPLOAD HANDLERS (UPDATED) ===
+    document.getElementById("mapUpload").addEventListener("change", e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const mapName = prompt("Enter a name for this map:", file.name.split('.').slice(0, -1).join('.'));
+        if (!mapName) {
+            e.target.value = "";
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const img = new Image();
+            img.onload = () => { 
+                const newMap = {
+                    name: mapName,
+                    img: img,
+                    imgBase64: ev.target.result,
+                    tokens: [],
+                    drawings: [],
+                    gridSize: 50,
+                    isGridVisible: false,
+                    scale: 1.0,
+                    panX: 0,
+                    panY: 0
+                };
+                maps.push(newMap);
+                switchMap(maps.length - 1);
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = "";
+    });
+
+    document.getElementById("tokenUpload").addEventListener("change", e => {
+        const file = e.target.files[0];
+        if (!file || !getCurrentMap()) {
+            e.target.value = ""; 
+            if (!getCurrentMap()) alert("Please upload a map first.");
+            return;
+        }
+        const reader = new FileReader();
+        
+        reader.onload = function(ev) {
+            const tokenImg = new Image();
+            const size = parseInt(document.getElementById("tokenSize").value);
+            const imgBase64Data = ev.target.result; 
+
+            tokenImg.onload = () => {
+                const mapX = canvas.width/2 - size/2;
+                const mapY = canvas.height/2 - size/2;
+
+                getCurrentMap().tokens.push({ 
+                    img: tokenImg, 
+                    x: mapX, 
+                    y: mapY, 
+                    size, 
+                    imgBase64: imgBase64Data, 
+                    linkedCharacterIndex: null 
+                });
+                draw();
+            };
+            tokenImg.src = imgBase64Data;
+        };
+        
+        reader.readAsDataURL(file);
+        e.target.value = ""; 
+    });
+
+    // --- Grid Event Listeners (UPDATED) ---
+    document.getElementById("gridToggle").addEventListener("change", e => {
+        const map = getCurrentMap();
+        if (!map) return;
+
+        map.isGridVisible = e.target.checked;
+        draw();
+    });
+
+    document.getElementById("gridSize").addEventListener("input", e => {
+        const map = getCurrentMap();
+        if (!map) return;
+        
+        const newGridSize = parseInt(e.target.value) || 50;
+        const currentGridSize = map.gridSize;
+        
+        if (currentGridSize !== newGridSize) {
+            const scaleFactor = newGridSize / currentGridSize; 
+
+            // FIX: Correctly scale token size and position based on the center point 
+            map.tokens.forEach(t => {
+                // 1. Calculate the token's center in the current map coordinate system
+                const centerX = t.x + t.size / 2;
+                const centerY = t.y + t.size / 2;
+
+                // 2. Apply the proportional scaling to the center point
+                const newCenterX = centerX * scaleFactor;
+                const newCenterY = centerY * scaleFactor;
+
+                // 3. Scale the token size
+                t.size = t.size * scaleFactor;
+
+                // 4. Calculate the new top-left corner
+                let newX = newCenterX - t.size / 2;
+                let newY = newCenterY - t.size / 2;
+                
+                // 5. Re-snap to the new grid if the grid is visible, maintaining relative position
+                if (map.isGridVisible) {
+                    newX = Math.round(newX / newGridSize) * newGridSize;
+                    newY = Math.round(newY / newGridSize) * newGridSize;
+                }
+                
+                t.x = newX;
+                t.y = newY;
+            });
+        }
+        map.gridSize = newGridSize; 
+        draw();
+    });
+
+</script>
+
+</body>
+</html>
