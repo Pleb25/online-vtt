@@ -676,6 +676,7 @@ function hideRoomScreen() {
 
         fb.onValue(stateRef, snap => {
             if (!snap.exists()) return;
+            if (isDM) return;
             importGameState(snap.val());
             draw();
          });
@@ -1755,6 +1756,7 @@ function hideRoomScreen() {
 
 </body>
 </html>
+
 
 
 
