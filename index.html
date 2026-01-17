@@ -513,7 +513,89 @@ function hideRoomScreen() {
     let dragging = null;
     let offsetX, offsetY; 
     
-    let currentDrawing = null; 
+    let currentDrawing = null;
+    function exportGameState() {
+        // Save current view/grid state into current map
+        if (currentMapIndex !== null && maps[currentMapIndex]) {
+            maps[currentMapIndex].scale = scale;
+            maps[currentMapIndex].panX = panX;
+            maps[currentMapIndex].panY = panY;
+            maps[currentMapIndex].gridSize = parseInt(document.getElementById('gridSize').value);
+            maps[currentMapIndex].isGridVisible = document.getElementById('gridToggle').checked;
+        }
+
+        return {
+            characters,
+            selectedIndex,
+            currentMapIndex,
+            maps: maps.map(map => ({
+                name: map.name,
+                imgBase64: map.imgBase64,
+                drawings: map.drawings,
+                gridSize: map.gridSize,
+                isGridVisible: map.isGridVisible,
+                scale: map.scale,
+                panX: map.panX,
+                panY: map.panY,
+                tokens: map.tokens.map(t => ({
+                    x: t.x,
+                    y: t.y,
+                    size: t.size,
+                    imgBase64: t.imgBase64,
+                    linkedCharacterIndex: t.linkedCharacterIndex
+                }))
+            }))
+        };
+    }
+
+    // expose for safety if needed elsewhere
+    window.exportGameState = exportGameState;
+
+    async function importGameState(state) {
+        if (!state) return;
+
+        characters = state.characters || [];
+        selectedIndex = state.selectedIndex ?? (characters.length ? 0 : null);
+
+        maps = [];
+        currentMapIndex = state.currentMapIndex ?? null;
+
+        if (state.maps && state.maps.length) {
+            const loadedMaps = await Promise.all(
+                state.maps.map(mapData => loadMapData({
+                    name: mapData.name,
+                    imgBase64: mapData.imgBase64,
+                    drawings: mapData.drawings || [],
+                    gridSize: mapData.gridSize ?? 50,
+                    isGridVisible: mapData.isGridVisible ?? false,
+                    scale: mapData.scale ?? 1,
+                    panX: mapData.panX ?? 0,
+                    panY: mapData.panY ?? 0,
+                    tokens: (mapData.tokens || []).map(t => ({
+                        x: t.x,
+                        y: t.y,
+                        size: t.size,
+                        imgBase64: t.imgBase64,
+                        linkedCharacterIndex: t.linkedCharacterIndex
+                    }))
+                }))
+            );
+
+            maps = loadedMaps;
+            if (currentMapIndex === null || currentMapIndex >= maps.length) {
+            currentMapIndex = 0;
+            }
+        }
+
+        renderCharTabs(selectedIndex);
+        renderCharSheet();
+        renderMapTabs();
+        switchMap(currentMapIndex);
+        draw();
+    }
+
+    window.importGameState = importGameState;
+
     
     // === MAP TRANSFORMATION VARIABLES (Pan & Zoom) ===
     let scale = 1.0;
@@ -1301,8 +1383,8 @@ function hideRoomScreen() {
                     alert(`Token linked to ${characters[index].name || "Unnamed"}`);
                 } else if (choice !== null) { alert("Invalid index entered."); }
                 draw();
-                break;
                 if (isDM) pushState();
+                break;
             }
         }
     });
@@ -1673,6 +1755,7 @@ function hideRoomScreen() {
 
 </body>
 </html>
+
 
 
 
