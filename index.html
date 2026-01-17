@@ -337,6 +337,27 @@ canvas {
 </style>
 </head>
 <body>
+    
+<div id="roomScreen" style="
+  position: fixed;
+  inset: 0;
+  background: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 9999;
+">
+  <h2>Join or Create Room</h2>
+
+  <button id="createRoomBtn">Create Room (DM)</button>
+
+  <input id="roomIdInput" placeholder="Room ID">
+  <input id="passcodeInput" placeholder="Passcode">
+
+  <button id="joinRoomBtn">Join Room</button>
+</div>
 
 <div id="leftSidebar">
     <div class="sidebar-tabs">
@@ -468,8 +489,22 @@ const firebaseConfig = {
 
   window.fb = { ref, set, onValue };
   window.db = db;
+
+function showRoomScreen() {
+  document.getElementById("roomScreen").style.display = "flex";
+}
+
+function hideRoomScreen() {
+  document.getElementById("roomScreen").style.display = "none";
+}
+
 </script>
 <script>
+    
+    let currentRoom = null;
+    let isDM = false;
+    let connected = false;
+
     // === VTT STATE VARIABLES ===
     let characters = [];
     let selectedIndex = null;
@@ -493,6 +528,82 @@ const firebaseConfig = {
     const ctx = canvas.getContext("2d");
     const container = document.getElementById("charSheetContainer");
     const resultsDiv = document.getElementById("results");
+
+    
+    //JOIN AND CREATE ROOM
+    function generateCode(len = 6) {
+      return Math.random().toString(36).substring(2, 2 + len);
+    }
+
+    async function createRoom() {
+      const roomId = generateCode(6);
+      const passcode = generateCode(4);
+
+      await fb.set(
+        fb.ref(db, `rooms/${roomId}`),
+        {
+          passcode,
+          gameState: exportGameState()
+        }
+      );
+
+      currentRoom = roomId;
+      isDM = true;
+      connected = true;
+
+      alert(`Room ID: ${roomId}\nPasscode: ${passcode}`);
+
+      hideRoomScreen();
+      startOnlineSession();
+    }
+
+    function joinRoom() {
+      const roomId = document.getElementById("roomIdInput").value.trim();
+      const passcode = document.getElementById("passcodeInput").value.trim();
+
+      if (!roomId || !passcode) {
+        alert("Enter room ID and passcode");
+        return;
+      }
+
+      const roomRef = fb.ref(db, `rooms/${roomId}`);
+
+      fb.onValue(roomRef, snap => {
+        if (!snap.exists()) {
+          alert("Room not found");
+          return;
+        }
+
+        const data = snap.val();
+        if (data.passcode !== passcode) {
+          alert("Wrong passcode");
+          return;
+        }
+
+        currentRoom = roomId;
+        isDM = false;
+        connected = true;
+
+        hideRoomScreen();
+        startOnlineSession();
+      }, { onlyOnce: true });
+    }
+
+    function startOnlineSession() {
+        switchTab('charSheet');
+        renderMapTabs();
+
+        const stateRef = fb.ref(db, `rooms/${currentRoom}/gameState`);
+
+        fb.onValue(stateRef, snap => {
+            if (!snap.exists()) return;
+            importGameState(snap.val());
+            draw();
+         });
+    }
+
+
+
     
     // === MAP ACCESSORS ===
     function getCurrentMap() {
@@ -509,11 +620,21 @@ const firebaseConfig = {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        loadGame();
-        // Set initial tab state
-        switchTab('charSheet');
-        renderMapTabs();
+        showRoomScreen();
+    document.getElementById("createRoomBtn").onclick = createRoom;
+    document.getElementById("joinRoomBtn").onclick = joinRoom;
     });
+
+    function pushState() {
+        if (!connected || !isDM || !currentRoom) return;
+
+        fb.set(
+            fb.ref(db, `rooms/${currentRoom}/gameState`),
+            exportGameState()
+        );
+    }
+
+
 
     // === MAP TAB LOGIC ===
     function renderMapTabs() {
@@ -551,6 +672,7 @@ const firebaseConfig = {
             maps.splice(currentMapIndex, 1);
             if (maps.length > 0) {
                 switchMap(0);
+                if (isDM) pushState();
             } else {
                 currentMapIndex = null;
                 // Clear state when no maps are left
@@ -558,6 +680,7 @@ const firebaseConfig = {
                 document.getElementById('gridSize').value = 50;
                 draw();
                 renderMapTabs();
+                if (isDM) pushState();
             }
         }
     }
@@ -643,6 +766,7 @@ const firebaseConfig = {
             if (name) {
                 characters.push({ name, hp: 10, ac: 10, notes: "" });
                 selectCharacterTab(characters.length - 1);
+                if (isDM) pushState();
             }
         };
         tabsDiv.appendChild(addTab);
@@ -675,7 +799,12 @@ const firebaseConfig = {
         const hpInput = document.createElement("input");
         hpInput.type = "number";
         hpInput.value = char.hp;
-        hpInput.oninput = () => { char.hp = parseInt(hpInput.value) || 0; };
+        hpInput.oninput = () => { 
+            char.hp = parseInt(hpInput.value) || 0; 
+        };
+        hpInput.onblur = () => {
+            if (isDM) pushState();
+        };
         hpLabel.appendChild(hpInput);
         form.appendChild(hpLabel);
 
@@ -685,7 +814,14 @@ const firebaseConfig = {
         const acInput = document.createElement("input");
         acInput.type = "number";
         acInput.value = char.ac;
-        acInput.oninput = () => { char.ac = parseInt(acInput.value) || 0; };
+        acInput.oninput = () => { 
+            char.ac = parseInt(acInput.value) || 0; 
+        };
+
+        acInput.onblur = () => {
+            if (isDM) pushState();
+        };
+
         acLabel.appendChild(acInput);
         form.appendChild(acLabel);
 
@@ -717,7 +853,8 @@ const firebaseConfig = {
                 selectedIndex = characters.length ? 0 : null;
                 renderCharTabs(selectedIndex);
                 renderCharSheet();
-                draw(); 
+                draw();
+                if (isDM) pushState();
             }
         };
         form.appendChild(deleteBtn);
@@ -955,6 +1092,7 @@ const firebaseConfig = {
 
     // --- CANVAS MOUSE HANDLERS (UPDATED) ---
     canvas.addEventListener("mousedown", e => {
+        if (connected && !isDM) return;
         if (e.button !== 0 || !getCurrentMap()) return; 
 
         const rect = canvas.getBoundingClientRect();
@@ -1084,6 +1222,7 @@ const firebaseConfig = {
             currentDrawing = null; 
             draw();
         }
+        if (isDM) pushState();
     });
     
     canvas.addEventListener("mouseleave", () => {
@@ -1133,7 +1272,8 @@ const firebaseConfig = {
                 if(mx >= drawX && mx <= drawX + drawSize && my >= drawY && my <= drawY + drawSize){
                     if(confirm("Delete this token?")){ 
                         tokens.splice(i,1); 
-                        draw(); 
+                        draw();
+                        if (isDM) pushState();
                     }
                     break;
                 }
@@ -1165,6 +1305,7 @@ const firebaseConfig = {
                 } else if (choice !== null) { alert("Invalid index entered."); }
                 draw();
                 break;
+                if (isDM) pushState();
             }
         }
     });
@@ -1196,6 +1337,7 @@ const firebaseConfig = {
         if(tokens.length && confirm("Delete all tokens from the CURRENT map?")){
             tokens.length = 0; // Clear the array in place
             draw();
+            if (isDM) pushState();
         }
     });
     
@@ -1204,6 +1346,7 @@ const firebaseConfig = {
         if (drawings.length && confirm("Clear all persistent drawings from the CURRENT map?")) {
             drawings.length = 0; // Clear the array in place
             draw();
+            if (isDM) pushState();
         }
     });
 
@@ -1277,9 +1420,15 @@ const firebaseConfig = {
 
     // === SAVE / LOAD SYSTEM (UPDATED FOR MULTI-MAP) ===
     document.getElementById("saveGameBtn").addEventListener("click", () => {
-        autoSave();
-        alert("Game state manually saved to browser storage!");
+        if (connected) {
+            pushState();
+            alert("Game synced to room");
+        } else {
+            autoSave();
+            alert("Game saved locally");
+        }
     });
+
 
     document.getElementById("loadGameBtn").addEventListener("click", () => {
         loadGame();
@@ -1396,7 +1545,7 @@ const firebaseConfig = {
         }
     }
 
-    setInterval(autoSave, 60000); 
+    setInterval(() => {     if (isDM) pushState(); }, 60000); 
 
     // === MAP/TOKEN UPLOAD HANDLERS (UPDATED) ===
     document.getElementById("mapUpload").addEventListener("change", e => {
@@ -1427,6 +1576,7 @@ const firebaseConfig = {
                 };
                 maps.push(newMap);
                 switchMap(maps.length - 1);
+                if (isDM) pushState();
             };
             img.src = ev.target.result;
         };
@@ -1461,6 +1611,7 @@ const firebaseConfig = {
                     linkedCharacterIndex: null 
                 });
                 draw();
+                if (isDM) pushState();
             };
             tokenImg.src = imgBase64Data;
         };
@@ -1476,6 +1627,7 @@ const firebaseConfig = {
 
         map.isGridVisible = e.target.checked;
         draw();
+        if (isDM) pushState();
     });
 
     document.getElementById("gridSize").addEventListener("input", e => {
@@ -1517,10 +1669,12 @@ const firebaseConfig = {
         }
         map.gridSize = newGridSize; 
         draw();
+        if (isDM) pushState();
     });
 
 </script>
 
 </body>
 </html>
+
 
