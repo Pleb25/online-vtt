@@ -449,7 +449,26 @@ canvas {
     </div>
     <div id="results">Roll history will appear here...</div>
 </div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+const firebaseConfig = {
+  apiKey: "AIzaSyDBun94Ba7XxsthF4FXJsD3U97FIKKRa3k",
+  authDomain: "online-vtt.firebaseapp.com",
+  databaseURL: "https://online-vtt-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "online-vtt",
+  storageBucket: "online-vtt.firebasestorage.app",
+  messagingSenderId: "467628837190",
+  appId: "1:467628837190:web:02446b4501fca1a3903d47"
+};
+    
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window.fb = { ref, set, onValue };
+  window.db = db;
+</script>
 <script>
     // === VTT STATE VARIABLES ===
     let characters = [];
@@ -1504,3 +1523,4 @@ canvas {
 
 </body>
 </html>
+
