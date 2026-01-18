@@ -352,7 +352,7 @@ canvas {
   <h2>Join or Create Room</h2>
 
   <button id="createRoomBtn">Create Room (DM)</button>
-
+  <input id="playerNameInput" placeholder="Your Name">
   <input id="roomIdInput" placeholder="Room ID">
   <input id="passcodeInput" placeholder="Passcode">
 
@@ -411,6 +411,8 @@ canvas {
 
 <div id="main">
     <h1>Abijeet's DND Virtual-Table</h1>
+
+    <div id="roomInfo"></div>
 
     <div id="mapTabsContainer">
         </div>
@@ -472,8 +474,8 @@ canvas {
 </div>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
+  import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    
 const firebaseConfig = {
   apiKey: "AIzaSyDBun94Ba7XxsthF4FXJsD3U97FIKKRa3k",
   authDomain: "online-vtt.firebaseapp.com",
@@ -487,7 +489,7 @@ const firebaseConfig = {
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  window.fb = { ref, set, onValue };
+  window.fb = { ref, set, onValue, get };
   window.db = db;
 
 function showRoomScreen() {
@@ -503,6 +505,7 @@ function hideRoomScreen() {
     let connected = false;
 
     // === VTT STATE VARIABLES ===
+    let playerName = "Anonymous Adventurer";
     let characters = [];
     let selectedIndex = null;
     
@@ -615,28 +618,42 @@ function hideRoomScreen() {
     }
 
     async function createRoom() {
-      const roomId = generateCode(6);
-      const passcode = generateCode(4);
+      const roomId = document.getElementById("roomIdInput").value.trim();
+      const passcode = document.getElementById("passcodeInput").value.trim();
 
-      await fb.set(
-        fb.ref(db, `rooms/${roomId}`),
-        {
-          passcode,
-          gameState: exportGameState()
-        }
-      );
+      if (!roomId || !passcode) {
+        alert("Room ID and passcode required.");
+        return;
+      }
+
+      const roomRef = fb.ref(db, `rooms/${roomId}`);
+      const snap = await fb.get(roomRef);
+
+      if (snap.exists()) {
+        alert("Room already exists. Pick another ID.");
+        return;
+      }
+
+      await fb.set(roomRef, {
+        passcode,
+        gameState: exportGameState()
+      });
 
       currentRoom = roomId;
       isDM = true;
       connected = true;
 
-      alert(`Room ID: ${roomId}\nPasscode: ${passcode}`);
-
+      playerName =
+          document.getElementById("playerNameInput").value.trim()
+          || "Dungeon Master";
+      // room creation succeeded
+      document.getElementById("createRoomBtn").disabled = true;
+      document.getElementById("joinRoomBtn").disabled = true;
       hideRoomScreen();
       startOnlineSession();
     }
 
-    function joinRoom() {
+    async function joinRoom() {
       const roomId = document.getElementById("roomIdInput").value.trim();
       const passcode = document.getElementById("passcodeInput").value.trim();
 
@@ -646,29 +663,41 @@ function hideRoomScreen() {
       }
 
       const roomRef = fb.ref(db, `rooms/${roomId}`);
+      const snap = await fb.get(roomRef);
 
-      fb.onValue(roomRef, snap => {
-        if (!snap.exists()) {
-          alert("Room not found");
-          return;
-        }
+      if (!snap.exists()) {
+        alert("Room not found");
+        return;
+      }
 
-        const data = snap.val();
-        if (data.passcode !== passcode) {
-          alert("Wrong passcode");
-          return;
-        }
+      const data = snap.val();
+      if (data.passcode !== passcode) {
+        alert("Wrong passcode");
+        return;
+      }
 
-        currentRoom = roomId;
-        isDM = false;
-        connected = true;
+      currentRoom = roomId;
+      isDM = false;
+      connected = true;
 
-        hideRoomScreen();
-        startOnlineSession();
-      }, { onlyOnce: true });
+      playerName =
+        document.getElementById("playerNameInput").value.trim()
+        || "Unnamed Player";
+
+      window.playerName = playerName;
+      // room creation succeeded
+      document.getElementById("createRoomBtn").disabled = true;
+      document.getElementById("joinRoomBtn").disabled = true;
+
+      hideRoomScreen();
+      startOnlineSession();
     }
 
+
     function startOnlineSession() {
+        document.getElementById("roomInfo").textContent =
+          `Room: ${currentRoom} | You: ${playerName}${isDM ? " (DM)" : ""}`;
+
         switchTab('charSheet');
         renderMapTabs();
 
@@ -1756,6 +1785,7 @@ function hideRoomScreen() {
 
 </body>
 </html>
+
 
 
 
